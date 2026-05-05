@@ -1,8 +1,9 @@
 const Validator = require("fastest-validator");
 const v = new Validator();
-const { Item, Loan } = require('../models');
+const { Item, Loan, Return } = require('../models');
 const { response } = require('../helpers/response.formatter');
 const { Op } = require("sequelize");
+const { format } = require("sequelize/lib/utils");
 
 module.exports = {
     createLoan: async (req, res) => {
@@ -20,10 +21,12 @@ module.exports = {
                 item_id: Number(item_id), // string menjadi number 
                 total_item: Number(total_item),
                 name: name,
-                date: new Date(date) //string menjad date
+                date: new Date(date) //string menjadi date
 
             }
+
             const validate = v.validate(data, schema);
+
             // cek validasi 
             if (validate.length > 0) {
                 return res.status(400).json(response(400, 'validasi gagal', validate));
@@ -33,15 +36,59 @@ module.exports = {
             if (!item) {
                 return res.status(404).json(response(404, 'data item not found please check [item_id]'))
             }
-            // memastikan data total item yang dipinja kurang dari stock gaboleh pinjem lebih dari stock yang ada 
+
+            // memastikan data total item yang dipinjam kurang dari stock gaboleh pinjem lebih dari stock yang ada 
             if (data.total_item > item.stock) {
                 return res.status(400).json(response(400, `stock not available available only ${item.stock}`))
             }
 
+            const loan = await Loan.create(data);
+            // update stok di item, kurangi jumlah pinjam
+            const updateStock = await Item.update({
+                stock: item.stock - data.total_item
+            }, {
+                where: { id: item_id }
+            });
 
+            // ambil data loan dan relasi itemnya
+            const loanWithItem = await Loan.findByPk(
+                loan.id,
+                { include: Item } // include : ambil relasi ke model yang disebutkan
+            );
 
+            // output berupa data peminjaman
+            return res.status(201).json(response(201, "Created", loanWithItem));
         } catch (error) {
-            return res.status(500).json(response(500, 'Server Error', error))
+            return res.status(500).json(response(500, 'Server Error', error.message))
+        }
+    },
+    getLoans: async (req, res) => {
+        try {
+            const { page, limit } = req.query;
+            // page : ambil data di halaman ke berapa, limit : munculin data berapa
+            // offset : menentukan daya yang dimunculkan mulai dari berapa 
+            const offset = (Number(page) - 1) * Number(limit);
+            // contoh : page 1 : 1-1 = 0 : limitnya 10 : 0 * 10 = 0 jadi offset 0 datanya mulai dari 1, halaman ke 1 datanya 1-10
+            // contoh : page 2 : 2-1 = 1 : limitnya 10 : 1 * 10 = 10 jadi offset 10 datanya mulai dari 11, halaman ke 2 datanya 11-20
+
+            // count : ambil semua jumlah data , rows : ambil data
+            const { count, rows } = await Loan.findAndCountAll({
+                // offset & limit : untuk pagination
+                offset: Number(offset),
+                limit: Number(limit),
+                include: [Item, Return] // mengambil lebih dari satu relasi, dari nama model
+            });
+
+            const formatPagination = {
+                data: rows, // data yang dimunculkan 
+                limit: limit,
+                rows: (Number(offset) + 1) + '-' + (Number(offset) + Number(limit)), // munculkan angka 1-20 atau 21-30 sesuai yang diambil : misal offset 20 : (20+1) (20+10) : 21-30 
+                total: count, // jumlah data keseluruhan 
+                page: page, // sedang di halaman ke berapa
+            }
+            return res.status(200).json(response(200, "Success", formatPagination));
+        } catch (error) {
+            return res.status(500).json(response(500, 'Server Error', error.message))
         }
     }
 }
