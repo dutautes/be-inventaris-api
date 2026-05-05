@@ -1,0 +1,25 @@
+const express = require('express')
+const app = express()
+const port = 3000
+
+const db = require("./models")
+const methodOverride = require('method-override')
+const itemRoutes = require("./routes/item.routes")
+// cek koneksi model - migration - projek sequelize
+db.sequelize.authenticate()
+    .then(() => console.log("Database (model) terkoneksi"))
+    .catch((error) => console.error(error))
+
+// app.use : mendaftarkan routing atau config header lain, urutannya sebelum app.get
+app.use(express.json()); // mengizinkan req.body format json
+app.use(methodOverride("_method")); // menggunakan _method PUT PATCH DELETE
+app.use('/uploads', express.static('uploads')); // agar gambar yang disimpan di folder uploads dibolehkan untuk diambil/dimunculkan di browser (FE)
+app.use('/items', itemRoutes); // mendaftarkan routes dan prefix nya
+
+app.get('/', (req, res) => {
+    res.send('Hello Duta!')
+})
+
+app.listen(port, () => {
+    console.log(`Example app listening on port ${port}`)
+})
