@@ -82,7 +82,7 @@ module.exports = {
             const formatPagination = {
                 data: rows, // data yang dimunculkan 
                 limit: limit,
-                rows: (Number(offset) + 1) + '-' + (Number(offset) + Number(limit)), // munculkan angka 1-20 atau 21-30 sesuai yang diambil : misal offset 20 : (20+1) (20+10) : 21-30 
+                rows: (Number(offset) + 1) + '-' + (Number(offset) + rows.length), // munculkan angka 1-20 atau 21-30 sesuai yang diambil : misal offset 20 : (20+1) (20+10) : 21-30 
                 total: count, // jumlah data keseluruhan 
                 page: page, // sedang di halaman ke berapa
             }

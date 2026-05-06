@@ -65,7 +65,34 @@ module.exports = {
                 // kalau di params postman ada sortBy dan order, jalanin pengurutan, kalo gaada pake default. misal sortBy 'stock' order 'DESC'
                 order: sortBy && order ? [[sortBy, order]] : [] // cari berdasarkan field name di db dari name req.query
             });
-            return res.status(200).json(response(200, "Success", items));
+
+            // PAGINATION 
+            const { page, limit } = req.query;
+            const offset = (Number(page) - 1) * Number(limit);
+            const { count, rows } = await Item.findAndCountAll({
+                offset: Number(offset),
+                limit: Number(limit),
+                // include: [Item, Return] // mengambil lebih dari satu relasi, dari nama model
+            });
+
+            const formatPagination = {
+                data: rows, // data yang dimunculkan 
+                limit: limit,
+                rows: (Number(offset) + 1) + '-' + (Number(offset) + rows.length), // munculkan angka 1-20 atau 21-30 sesuai yang diambil : misal offset 20 : (20+1) (20+10) : 21-30 
+                total: count, // jumlah data keseluruhan 
+                page: page, // sedang di halaman ke berapa
+            }
+
+            const loan = await Loan.findByPk(loan_id);
+            // kalau data peminjamam gaada
+            if (!loan) {
+                return res.status(400).json(response(400, "Validasi Error", "Data loan not found"));
+            }
+            // data total_item pengembalian (data) tidak boleh kurang dari peminjaman
+            if (data.total_item > loan.total_item) {
+                return res.status(400).json(response(400, "Validasi Error", "Total return item more than loan item"))
+            }
+            return res.status(200).json(response(200, "Success", formatPagination));
         } catch (error) {
             return res.status(500).json(response(500, "Server Error", error.message));
         }
