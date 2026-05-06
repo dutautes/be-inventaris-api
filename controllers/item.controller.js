@@ -83,15 +83,6 @@ module.exports = {
                 page: page, // sedang di halaman ke berapa
             }
 
-            const loan = await Loan.findByPk(loan_id);
-            // kalau data peminjamam gaada
-            if (!loan) {
-                return res.status(400).json(response(400, "Validasi Error", "Data loan not found"));
-            }
-            // data total_item pengembalian (data) tidak boleh kurang dari peminjaman
-            if (data.total_item > loan.total_item) {
-                return res.status(400).json(response(400, "Validasi Error", "Total return item more than loan item"))
-            }
             return res.status(200).json(response(200, "Success", formatPagination));
         } catch (error) {
             return res.status(500).json(response(500, "Server Error", error.message));
